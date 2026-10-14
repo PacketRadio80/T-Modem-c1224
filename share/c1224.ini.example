@@ -1,0 +1,33 @@
+# T-Modem-c1224 operator INI example
+# Apply on device via USB CDC:
+#   SET callsign=N0CALL
+#   SET device_id=c1224
+#   SET quiet=1
+#   SAVE
+# Or dump/compare with: INI · RELOAD · DEFAULTS
+#
+# SAVE persists a config blob in the last 4 KiB of Pico flash — not a filesystem.
+# Boot banner is fixed in firmware source (always on CDC) — not an INI key.
+# quiet=1 suppresses extra unsolicited ASCII (STATUS/PROBE/CONFIG), not the boot banner.
+# Not configurable here: baud/rate (crystal stuffing), softmodem, data bridge, boot banner.
+
+[texts]
+starting=c1224 is starting
+ready=c1224 is ready
+fault=c1224 is fault
+sending=c1224 is sending
+signal=c1224 signal
+packet=c1224 packet
+power=c1224 power
+idle=c1224 idle
+
+[terminal]
+callsign=
+device_id=c1224
+quiet=1
+
+[sense]
+cdt_active_high=0
+packet_hold_ms=500
+packet_edge_min=4
+packet_window_ms=50
