@@ -4,6 +4,8 @@
 
 Classic **chip** AFSK modem (TCM3105-class) + Pico as USB **KISS** half-TNC. Power **12 V**; USB = flash + KISS + ASCII service only.
 
+Complete build + use documentation: [`dok/README.md`](dok/README.md).
+
 ## What you need
 
 - Assembled board (one crystal: **Y1 4.4336** → 1200 or **Y2 6.5536** → 2400)
@@ -36,7 +38,7 @@ Open `/dev/ttyACM*` → fixed boot banner once → KISS or `HELP`.
 
 ## CDC commands
 
-`HELP` · `STATUS` · `ID` · `PTT ON`/`OFF` · `QUIET`/`VERBOSE` · `INI`/`GET`/`SET`/`SAVE`/`RELOAD`/`DEFAULTS`
+`HELP` · `STATUS` · `ID` · `PTT ON`/`OFF` · `QUIET`/`VERBOSE` · `INI`/`GET`/`SET`/`SAVE`/`RELOAD`/`DEFAULTS` · `BOOTSEL`/`REBOOT`
 
 ## INI · SAVE
 

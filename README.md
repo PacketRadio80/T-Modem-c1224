@@ -8,6 +8,8 @@ USB KISS half-TNC for Raspberry Pi Pico. Chip PHY via TCM3105-class modem IC wit
 
 **Firmware language:** C · **License:** GPLv3 · **Platform:** RP2040 (Raspberry Pi Pico)
 
+**Docs:** [`docs/dok/README.md`](docs/dok/README.md) — complete documentation (build · flash · commission · operate · host · troubleshooting).
+
 ## Firmware Images
 
 Pre-built UF2 files in `firmware/c1224/bin/`:
@@ -44,6 +46,8 @@ Pre-built UF2 files in `firmware/c1224/bin/`:
 picotool load firmware/c1224/bin/c1224-2400.uf2 -x
 ```
 
+**Unattended (CLI):** send `BOOTSEL` (or `DFU`) to enter the UF2 bootloader, `REBOOT` to restart. Opening the port at **1200 baud** and dropping **DTR** also enters the bootloader (classic 1200bps touch).
+
 ### Build from Source
 
 ```bash
@@ -77,6 +81,8 @@ make -j$(nproc)
 | `SAVE` | Persist config to flash |
 | `RELOAD` | Reload config from flash |
 | `DEFAULTS` | Reset to factory defaults |
+| `BOOTSEL` / `DFU` | Enter UF2 bootloader (unattended flash) |
+| `REBOOT` | Restart the firmware |
 
 ## Hardware
 

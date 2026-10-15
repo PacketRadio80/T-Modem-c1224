@@ -27,7 +27,7 @@ device_id=c1224
 quiet=1
 
 [sense]
-cdt_active_high=0
+cdt_active_high=1
 packet_hold_ms=500
 packet_edge_min=4
 packet_window_ms=50

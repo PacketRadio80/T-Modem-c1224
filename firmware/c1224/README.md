@@ -33,6 +33,8 @@ make -j$(nproc) c1224
 2. Copy `c1224.uf2` to RPI-RP2 (or `picotool load -f c1224.uf2`).
 3. Host opens `/dev/ttyACM*` (USB CDC).
 
+**Unattended:** CLI `BOOTSEL`/`DFU` enters the bootloader · `REBOOT` restarts · 1200bps DTR-drop touches the bootloader too.
+
 ## Any KISS terminal (standalone — no MAX25)
 
 **MAX25-Stack is not required.** No proprietary host protocol. **All terminals should work insofar as applicable** — any client that speaks **KISS and/or ASCII service** over a raw serial port. Optional convenience only: max25d device **`tmodem`** / `max25-terminal`.
@@ -92,12 +94,14 @@ Fixed source text in `src/common/banner.c` / `include/version.h` (not INI / CDC)
 | Command | Effect |
 |---------|--------|
 | `HELP` | Command list |
-| `STATUS` | state, PTT, signal, packet, bitrate, raw CDT/RXD |
+| `STATUS` | state, PTT, signal, packet, flag, bitrate, raw CDT/RXD, `gp9` |
 | `ID` | `device_id` / `callsign` / bitrate / quiet (solicited) |
 | `PTT ON` / `PTT OFF` | Key GP9 |
 | `QUIET ON` / `OFF` | Suppress extra unsolicited CDC ASCII (default ON via INI `quiet=1`; never the boot banner) |
 | `VERBOSE ON` / `OFF` | Alias: `QUIET OFF` / `QUIET ON` |
 | `INI` / `GET` / `SET` / `SAVE` / `RELOAD` / `DEFAULTS` | Config |
+| `BOOTSEL` / `DFU` | Enter UF2 bootloader (unattended flash) |
+| `REBOOT` | Restart the firmware |
 
 **`SAVE`:** writes a config **blob** into the **last 4 KiB** of Pico flash — **not** a filesystem.
 
