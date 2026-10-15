@@ -70,7 +70,7 @@ void config_load_defaults(void)
     copy_text(g_cfg.callsign, "");
     copy_text(g_cfg.device_id, "c1224");
     g_cfg.quiet = true;
-    g_cfg.cdt_active_high = false;
+    g_cfg.cdt_active_high = true;
     g_cfg.packet_hold_ms = 500;
     g_cfg.packet_edge_min = 4;
     g_cfg.packet_window_ms = 50;

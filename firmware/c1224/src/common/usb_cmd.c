@@ -14,6 +14,8 @@
 #include "kiss.h"
 #include "hardware/gpio.h"
 #include "hardware/watchdog.h"
+#include "pico/bootrom.h"
+#include "tusb.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -24,6 +26,7 @@ static char g_line[LINE_MAX];
 static unsigned g_len;
 static kiss_rx_t g_kiss;
 static uint8_t g_kiss_payload[KISS_MAX_PAYLOAD];
+static bool g_baud1200;
 
 static void trim_copy_upper_cmd(char *dst, size_t dstsz, const char *src)
 {
@@ -63,7 +66,7 @@ static void handle_line(void)
     }
     if (strcmp(cmd, "STATUS") == 0) {
         printf("STATUS state=%s ptt=%d signal=%d packet=%d flag=%d "
-               "cdt_raw=%d rxd_raw=%d bitrate=%u kiss_half_tnc=1\r\n",
+               "cdt_raw=%d rxd_raw=%d gp9=%d bitrate=%u kiss_half_tnc=1\r\n",
                c1224_state_string(status_get()),
                (int)ptt_get(),
                (int)sense_signal_active(),
@@ -71,6 +74,7 @@ static void handle_line(void)
                (int)sense_packet_flag(),
                (int)gpio_get(PIN_MODEM_CDT),
                (int)gpio_get(PIN_MODEM_RXD),
+               (int)gpio_get(PIN_PTT_DRV),
                afsk_bitrate());
         return;
     }
@@ -81,6 +85,7 @@ static void handle_line(void)
         printf("  QUIET ON|OFF | VERBOSE ON|OFF\r\n");
         printf("  INI | GET <key> | SET <key>=<value>\r\n");
         printf("  SAVE | RELOAD | DEFAULTS\r\n");
+        printf("  BOOTSEL | REBOOT\r\n");
         printf("Dual protocol: byte 0xC0 → KISS; line ASCII → service.\r\n");
         printf("Packet: use KISS-only (any host). Service cmds optional.\r\n");
         printf("Boot banner always on (source). quiet=1 damps extra ASCII.\r\n");
@@ -143,6 +148,22 @@ static void handle_line(void)
         printf("OK DEFAULTS (RAM; SAVE to persist)\r\n");
         status_publish();
         return;
+    }
+    if (strcmp(cmd, "BOOTSEL") == 0 || strcmp(cmd, "DFU") == 0) {
+        printf("OK BOOTSEL\r\n");
+        stdio_flush();
+        sleep_ms(100);
+        watchdog_disable();
+        reset_usb_boot(0, 0);
+    }
+    if (strcmp(cmd, "REBOOT") == 0) {
+        printf("OK REBOOT\r\n");
+        stdio_flush();
+        sleep_ms(100);
+        watchdog_reboot(0, 0, 10);
+        while (1) {
+            tight_loop_contents();
+        }
     }
     if (strncmp(cmd, "GET ", 4) == 0) {
         char key[32];
@@ -270,4 +291,20 @@ void usb_cmd_init(void)
 {
     g_len = 0;
     kiss_rx_init(&g_kiss);
+}
+
+void tud_cdc_line_coding_cb(uint8_t itf, cdc_line_coding_t const* p_line_coding)
+{
+    (void)itf;
+    g_baud1200 = (p_line_coding->bit_rate == 1200);
+}
+
+void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
+{
+    (void)itf;
+    (void)rts;
+    if (g_baud1200 && !dtr) {
+        watchdog_disable();
+        reset_usb_boot(0, 0);
+    }
 }
