@@ -66,7 +66,8 @@ static void handle_line(void)
     }
     if (strcmp(cmd, "STATUS") == 0) {
         printf("STATUS state=%s ptt=%d signal=%d packet=%d flag=%d "
-               "cdt_raw=%d rxd_raw=%d gp9=%d bitrate=%u kiss_half_tnc=1\r\n",
+               "cdt_raw=%d rxd_raw=%d gp9=%d bitrate=%u kiss_half_tnc=1 "
+               "tx_delay=%u txtail=%u\r\n",
                c1224_state_string(status_get()),
                (int)ptt_get(),
                (int)sense_signal_active(),
@@ -75,7 +76,9 @@ static void handle_line(void)
                (int)gpio_get(PIN_MODEM_CDT),
                (int)gpio_get(PIN_MODEM_RXD),
                (int)gpio_get(PIN_PTT_DRV),
-               afsk_bitrate());
+               afsk_bitrate(),
+               (unsigned)config_get()->tx_delay_ms,
+               (unsigned)config_get()->txtail_ms);
         return;
     }
     if (strcmp(cmd, "HELP") == 0) {
@@ -94,6 +97,8 @@ static void handle_line(void)
                afsk_bitrate());
         printf("No softmodem · no Host↔Chip bit bridge · no baud switch.\r\n");
         printf("INI: texts + callsign device_id quiet + sense keys\r\n");
+        printf("Modem: tx_delay_ms txtail_ms\r\n");
+        printf("KISS params: TXDELAY/TXTAIL applied; SLOTTIME/PERSIST/FULLDUP ignored.\r\n");
         return;
     }
     if (strcmp(cmd, "ID") == 0) {
@@ -237,6 +242,39 @@ static void handle_line(void)
     printf("ERR unknown (try HELP)\r\n");
 }
 
+static void kiss_param_apply(uint8_t cmd, uint8_t val)
+{
+    c1224_config_t *cfg = config_mutable();
+    switch (cmd) {
+    case KISS_CMD_TXDELAY:
+        cfg->tx_delay_ms = (uint16_t)val * 10u;
+        break;
+    case KISS_CMD_TXTAIL:
+        cfg->txtail_ms = (uint16_t)val * 10u;
+        break;
+    case KISS_CMD_SLOTTIME:
+    case KISS_CMD_PERSIST:
+    case KISS_CMD_FULLDUP:
+        /* CSMA parameters — not implemented in this firmware. Surface
+         * the rejection so a host never believes the value took effect. */
+        if (config_unsolicited_ok()) {
+            printf("KISS param cmd=%u val=%u ignored (not supported)\r\n",
+                   (unsigned)cmd, (unsigned)val);
+        }
+        return;
+    default:
+        if (config_unsolicited_ok()) {
+            printf("KISS param cmd=%u val=%u unknown\r\n",
+                   (unsigned)cmd, (unsigned)val);
+        }
+        return;
+    }
+    if (config_unsolicited_ok()) {
+        printf("KISS param cmd=%u val=%u\r\n",
+               (unsigned)cmd, (unsigned)val);
+    }
+}
+
 void usb_cmd_on_rx_frame(const uint8_t *info, size_t len)
 {
     if (!sense_signal_active()) {
@@ -259,10 +297,15 @@ void usb_cmd_poll(void)
         /* KISS path: FEND or mid-frame */
         if (b == KISS_FEND || g_kiss.in_frame) {
             size_t plen = 0;
-            if (kiss_rx_byte(&g_kiss, b, g_kiss_payload, &plen)) {
+            uint8_t pcmd = 0, pval = 0;
+            kiss_rx_kind_t kind = kiss_rx_byte_ex(&g_kiss, b, g_kiss_payload,
+                                                  &plen, &pcmd, &pval);
+            if (kind == KISS_RX_DATA) {
                 if (plen > 0 && !afsk_tx_busy()) {
                     afsk_tx_frame(g_kiss_payload, plen);
                 }
+            } else if (kind == KISS_RX_PARAM) {
+                kiss_param_apply(pcmd, pval);
             }
             continue;
         }

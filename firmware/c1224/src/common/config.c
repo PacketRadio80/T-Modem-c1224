@@ -74,6 +74,8 @@ void config_load_defaults(void)
     g_cfg.packet_hold_ms = 500;
     g_cfg.packet_edge_min = 4;
     g_cfg.packet_window_ms = 50;
+    g_cfg.tx_delay_ms = 500;
+    g_cfg.txtail_ms = 100;
 }
 
 static char *trim(char *s)
@@ -186,6 +188,14 @@ bool config_set_kv(const char *key, const char *value)
         g_cfg.packet_window_ms = (uint16_t)atoi(value);
         return true;
     }
+    if (strcmp(kbuf, "tx_delay_ms") == 0) {
+        g_cfg.tx_delay_ms = (uint16_t)atoi(value);
+        return true;
+    }
+    if (strcmp(kbuf, "txtail_ms") == 0) {
+        g_cfg.txtail_ms = (uint16_t)atoi(value);
+        return true;
+    }
     return false;
 }
 
@@ -239,6 +249,12 @@ bool config_get_kv(const char *key, char *buf, size_t buflen)
         src = num;
     } else if (strcmp(kbuf, "packet_window_ms") == 0) {
         snprintf(num, sizeof(num), "%u", (unsigned)g_cfg.packet_window_ms);
+        src = num;
+    } else if (strcmp(kbuf, "tx_delay_ms") == 0) {
+        snprintf(num, sizeof(num), "%u", (unsigned)g_cfg.tx_delay_ms);
+        src = num;
+    } else if (strcmp(kbuf, "txtail_ms") == 0) {
+        snprintf(num, sizeof(num), "%u", (unsigned)g_cfg.txtail_ms);
         src = num;
     } else {
         return false;
@@ -319,7 +335,10 @@ static size_t build_ini(char *out, size_t outsz)
                      "cdt_active_high=%d\n"
                      "packet_hold_ms=%u\n"
                      "packet_edge_min=%u\n"
-                     "packet_window_ms=%u\n",
+                     "packet_window_ms=%u\n"
+                     "[modem]\n"
+                     "tx_delay_ms=%u\n"
+                     "txtail_ms=%u\n",
                      g_cfg.starting, g_cfg.ready, g_cfg.fault, g_cfg.sending,
                      g_cfg.signal, g_cfg.packet, g_cfg.power, g_cfg.idle,
                      g_cfg.callsign, g_cfg.device_id,
@@ -327,7 +346,9 @@ static size_t build_ini(char *out, size_t outsz)
                      (int)g_cfg.cdt_active_high,
                      (unsigned)g_cfg.packet_hold_ms,
                      (unsigned)g_cfg.packet_edge_min,
-                     (unsigned)g_cfg.packet_window_ms);
+                     (unsigned)g_cfg.packet_window_ms,
+                     (unsigned)g_cfg.tx_delay_ms,
+                     (unsigned)g_cfg.txtail_ms);
     if (n < 0) {
         return 0;
     }

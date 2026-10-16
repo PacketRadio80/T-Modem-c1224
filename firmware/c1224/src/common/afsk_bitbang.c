@@ -7,7 +7,9 @@
 #include "board_pins.h"
 #include "ptt.h"
 #include "status.h"
+#include "config.h"
 #include "hardware/gpio.h"
+#include "hardware/watchdog.h"
 #include "pico/stdlib.h"
 #include <string.h>
 
@@ -59,6 +61,18 @@ static void nrzi_emit(bool data_bit)
     gpio_put(PIN_MODEM_TXD, g_nrzi_level ? 1 : 0);
 }
 
+/** sleep_ms that feeds the watchdog in 100 ms slices — tx_delay/txtail
+ *  are operator-configurable up to 65 s, the watchdog resets at 8 s. */
+static void sleep_ms_wd(uint32_t ms)
+{
+    while (ms > 0u) {
+        uint32_t slice = ms > 100u ? 100u : ms;
+        sleep_ms(slice);
+        watchdog_update();
+        ms -= slice;
+    }
+}
+
 bool afsk_tx_frame(const uint8_t *info, size_t info_len)
 {
     if (g_tx_busy || !info || info_len == 0 || info_len > HDLC_MAX_INFO) {
@@ -73,18 +87,30 @@ bool afsk_tx_frame(const uint8_t *info, size_t info_len)
     status_set(C1224_STATE_SENDING);
     status_publish();
     ptt_set(true);
-    sleep_ms(40); /* key-up settle — prototype */
+    /* KISS TXDELAY contract (AGENTS.md §4): PTT keys, radio settles,
+     * then data. Value is set by KISS param 0x01 or SET tx_delay_ms. */
+    sleep_ms_wd(config_get()->tx_delay_ms);
 
     g_nrzi_level = true;
     gpio_put(PIN_MODEM_TXD, 1);
 
+    unsigned bits_since_wd = 0;
     for (size_t i = 0; i < nbits; i++) {
         nrzi_emit(g_tx_bits[i] != 0);
         busy_wait_us_32(BIT_US);
+        if (++bits_since_wd >= 256u) {
+            /* Bit-bang loop never sleeps — feed the 8 s watchdog. At
+             * 300 Bd a max frame (HDLC_MAX_INFO=512) exceeds 17 s air
+             * time; without this, the watchdog resets mid-TX (USB
+             * re-enumeration, PTT drop). 256 bits = max 853 ms at 300 Bd. */
+            watchdog_update();
+            bits_since_wd = 0;
+        }
     }
 
     gpio_put(PIN_MODEM_TXD, 1);
-    sleep_ms(20);
+    /* KISS TXTAIL contract: keep PTT keyed after data before release. */
+    sleep_ms_wd(config_get()->txtail_ms);
     ptt_set(false);
     status_set(C1224_STATE_READY);
     status_publish();

@@ -30,6 +30,9 @@ typedef struct {
     uint16_t packet_hold_ms;
     uint16_t packet_edge_min;
     uint16_t packet_window_ms;
+    /* TX timing (KISS TXDELAY/TXTAIL contract, AGENTS.md §4) */
+    uint16_t tx_delay_ms;
+    uint16_t txtail_ms;
 } c1224_config_t;
 
 void config_init(void);

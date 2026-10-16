@@ -45,6 +45,7 @@ How-to: flash UF2 → plug USB → open `/dev/ttyACM*` → KISS `0xC0` or ASCII 
 |------|--------|
 | Device | `/dev/ttyACM*` (Linux) / equivalent CDC ACM |
 | Framing | Raw **8N1** · binary **KISS** (`0xC0` … `0xC0`) · DATA cmd `0x00` |
+| Params | `TXDELAY` / `TXTAIL` apply · `SLOTTIME` / `PERSIST` / `FULLDUP` ignored with notice |
 | Packet path | Send/receive KISS frames only — do **not** interleave ASCII while mid-frame |
 | Service path | Optional line ASCII (`STATUS`, `PTT`, …) when **not** inside a KISS frame |
 | Boot | Fixed source banner **always** once after CDC ready · `quiet=1` damps extra STATUS/CONFIG ASCII only |
@@ -112,6 +113,13 @@ Fixed source text in `src/common/banner.c` / `include/version.h` (not INI / CDC)
 | `callsign` | empty | Operator call / station string for `ID` |
 | `device_id` | `c1224` | Short device mark (`c1224` or `tmodem`) |
 | `quiet` | `1` | Suppress extra unsolicited CDC ASCII (not boot banner) |
+
+## INI (`[modem]`)
+
+| Key | Default | Role |
+|-----|---------|------|
+| `tx_delay_ms` | `500` | PTT key-up before the first data bit (KISS `TXDELAY` × 10 ms) |
+| `txtail_ms` | `100` | Tail after the last data bit before PTT off (KISS `TXTAIL` × 10 ms) |
 
 Display text keys (`starting`, `ready`, …) and sense keys unchanged. See [`share/c1224.ini.example`](../../share/c1224.ini.example).
 
