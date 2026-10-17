@@ -19,6 +19,7 @@
 
 static uint8_t g_tx_bits[TX_BITS_MAX];
 static volatile bool g_tx_busy;
+static volatile bool g_tone_active;
 static bool g_nrzi_level;
 static hdlc_rx_t g_rx;
 static bool g_rx_nrzi;
@@ -30,6 +31,7 @@ void afsk_bitbang_init(void)
 {
     gpio_put(PIN_MODEM_TXD, 1);
     g_tx_busy = false;
+    g_tone_active = false;
     g_nrzi_level = true;
     g_rx_nrzi = RX_IDLE_MARK;
     hdlc_rx_init(&g_rx);
@@ -73,9 +75,40 @@ static void sleep_ms_wd(uint32_t ms)
     }
 }
 
+void afsk_tx_tone(bool on, bool high_tone)
+{
+    if (on) {
+        if (g_tx_busy) {
+            return;
+        }
+        g_tone_active = true;
+        /* The TCM3105 turns a held TXD level into a continuous AFSK tone:
+         * mark (TXD=1) is the idle ~1200 Hz, the other level (TXD=0) is
+         * the higher space tone ~2200 Hz (Bell 202). Non-blocking so the
+         * main loop keeps feeding the watchdog for the whole "Dauer" tone. */
+        g_nrzi_level = !high_tone;
+        gpio_put(PIN_MODEM_TXD, high_tone ? 0 : 1);
+        status_set(C1224_STATE_SENDING);
+        status_publish();
+        ptt_set(true);
+    } else {
+        g_tone_active = false;
+        gpio_put(PIN_MODEM_TXD, 1);
+        g_nrzi_level = true;
+        ptt_set(false);
+        status_set(C1224_STATE_READY);
+        status_publish();
+    }
+}
+
+bool afsk_tx_tone_active(void)
+{
+    return g_tone_active;
+}
+
 bool afsk_tx_frame(const uint8_t *info, size_t info_len)
 {
-    if (g_tx_busy || !info || info_len == 0 || info_len > HDLC_MAX_INFO) {
+    if (g_tx_busy || g_tone_active || !info || info_len == 0 || info_len > HDLC_MAX_INFO) {
         return false;
     }
     size_t nbits = hdlc_encode_bits(info, info_len, g_tx_bits, TX_BITS_MAX, 2);
@@ -120,7 +153,7 @@ bool afsk_tx_frame(const uint8_t *info, size_t info_len)
 
 void afsk_rx_poll(void)
 {
-    if (g_tx_busy) {
+    if (g_tx_busy || g_tone_active) {
         return;
     }
     absolute_time_t now = get_absolute_time();

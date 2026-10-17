@@ -6,6 +6,6 @@
 #ifndef C1224_VERSION_H
 #define C1224_VERSION_H
 
-#define C1224_FW_VERSION "1.0-prototype"
+#define C1224_FW_VERSION "1.0"
 
 #endif /* C1224_VERSION_H */

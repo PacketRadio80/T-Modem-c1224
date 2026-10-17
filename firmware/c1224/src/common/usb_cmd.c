@@ -27,6 +27,7 @@ static unsigned g_len;
 static kiss_rx_t g_kiss;
 static uint8_t g_kiss_payload[KISS_MAX_PAYLOAD];
 static bool g_baud1200;
+static uint64_t g_last_rx_us;
 
 static void trim_copy_upper_cmd(char *dst, size_t dstsz, const char *src)
 {
@@ -64,6 +65,21 @@ static void handle_line(void)
         printf("OK PTT OFF\r\n");
         return;
     }
+    if (strcmp(cmd, "TONE ON") == 0 || strcmp(cmd, "TONE HIGH") == 0) {
+        afsk_tx_tone(true, true);
+        printf("OK TONE HIGH (space ~2200 Hz, PTT on)\r\n");
+        return;
+    }
+    if (strcmp(cmd, "TONE LOW") == 0 || strcmp(cmd, "TONE MARK") == 0) {
+        afsk_tx_tone(true, false);
+        printf("OK TONE LOW (mark ~1200 Hz, PTT on)\r\n");
+        return;
+    }
+    if (strcmp(cmd, "TONE OFF") == 0) {
+        afsk_tx_tone(false, false);
+        printf("OK TONE OFF (PTT off)\r\n");
+        return;
+    }
     if (strcmp(cmd, "STATUS") == 0) {
         printf("STATUS state=%s ptt=%d signal=%d packet=%d flag=%d "
                "cdt_raw=%d rxd_raw=%d gp9=%d bitrate=%u kiss_half_tnc=1 "
@@ -84,6 +100,7 @@ static void handle_line(void)
     if (strcmp(cmd, "HELP") == 0) {
         printf("Commands:\r\n");
         printf("  PTT ON | PTT OFF\r\n");
+        printf("  TONE HIGH|LOW|OFF  (continuous AFSK test tone + PTT)\r\n");
         printf("  STATUS | HELP | ID\r\n");
         printf("  QUIET ON|OFF | VERBOSE ON|OFF\r\n");
         printf("  INI | GET <key> | SET <key>=<value>\r\n");
@@ -291,8 +308,11 @@ void usb_cmd_on_rx_frame(const uint8_t *info, size_t len)
 void usb_cmd_poll(void)
 {
     int c;
+    bool got_byte = false;
     while ((c = getchar_timeout_us(0)) != PICO_ERROR_TIMEOUT) {
         uint8_t b = (uint8_t)c;
+        got_byte = true;
+        g_last_rx_us = time_us_64();
 
         /* KISS path: FEND or mid-frame */
         if (b == KISS_FEND || g_kiss.in_frame) {
@@ -327,6 +347,16 @@ void usb_cmd_poll(void)
         if (g_len + 1 < LINE_MAX && c >= 32 && c < 127) {
             g_line[g_len++] = (char)c;
         }
+    }
+    /* Dual-protocol escape hatch: a wedged KISS frame (malformed frame,
+     * host interleaving, trailing FEND) must not starve the ASCII
+     * service channel. No bytes for 100 ms while a frame is open and
+     * the line buffer is empty -> back to idle. Real KISS frames arrive
+     * in a single write and never hit this. */
+    if (!got_byte && g_kiss.in_frame && g_len == 0 &&
+        g_last_rx_us != 0 && (time_us_64() - g_last_rx_us) > 100000u) {
+        kiss_rx_init(&g_kiss);
+        g_last_rx_us = 0;
     }
 }
 
