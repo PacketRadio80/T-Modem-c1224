@@ -92,6 +92,7 @@ make -j$(nproc)
 - **PTT:** GP9 → optocoupler → radio PTT input
 - **Sense:** GP8 (CDT/carrier detect), GP7 (RXD/packet detect)
 - **Display:** I2C HD44780 via PCF8574 backpack (optional)
+- **Missing component (nachrüstbar):** the PCB has **no TX AF output buffer** → weak/distorted TX audio (TCM3105 `TXA` needs ≥50 kΩ load, but `RV1` loads it with 10 kΩ). **Retrofit (Lösung 1):** unity-gain op-amp buffer between `TXA` and `RV1` — see `hardware/BOM.md` §6.1.
 
 ## Architecture
 

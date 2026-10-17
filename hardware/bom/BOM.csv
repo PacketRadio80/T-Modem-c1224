@@ -29,6 +29,8 @@ Q1,1,NPN OC PTT TO-92,2N2222A or BC547,Open collector,STOCK
 R_PTT,1,4.7k 0.25W TH,Commodity,Q1 base,STOCK
 RV1,1,10k TX AF trimmer TH,Commodity,TX level,STOCK
 C_TX,1,AF AC couple,Commodity,TX path,STOCK
+U_BUF,1,TXA buffer op-amp follower (Loesung 1),MCP6001/TLV9061 RRO (LM358 DIP fallback),Decouple TXA from RV1/radio load,BUY
+C_BYP_BUF,1,100nF U_BUF supply decouple TH,Commodity,U_BUF decoupling,STOCK
 C_RX,1,AF AC couple,Commodity,RX path,STOCK
 LED_PWR,1,3mm LED,Commodity,Power,STOCK
 LED_PTT,1,3mm LED,Commodity,PTT,STOCK

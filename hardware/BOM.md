@@ -122,10 +122,41 @@ Silk: **12 V CENTRE +** · **USB DATA ONLY — NO VBUS POWER**.
 | R_PTT | 1 | 4.7 kΩ | TH | **STOCK** |
 | RV1 | 1 | 10 kΩ TX AF level | TH | **STOCK** |
 | C_TX, C_RX / C_AC* | 2 | AF AC couple | TH | **STOCK** |
+| U_BUF | 1 | **TXA buffer** — op-amp follower (Lösung 1) | MCP6001 / TLV9061 (SMD, RRO) · LM358 (DIP-8) | **BUY** |
+| C_BYP_BUF | 1 | 100 nF U_BUF supply decouple | TH | **STOCK** |
 | R_PAD* | 2–4 | Pad/bias | TH | **STOCK** |
 | D_PROT | 0/2 | 1N4148 clamp | TH | **OPTIONAL** |
 | LED_PWR, LED_PTT, LED_DCD, LED_TXRX | 4 | 3 mm LED | Commodity | **STOCK** |
 | R_LED1–4 | 4 | 330 Ω–1 kΩ | TH | **STOCK** |
+
+### 6.1 TXA buffer — Lösung 1 (HW fix)
+
+**Problem (live gemessen 2026-10-17):** `RV1` (10 kΩ) hängt direkt von `TXA`
+(TCM3105 pin 11) nach `GND` — der `TXA`-Ausgang sieht also **immer** die vollen
+10 kΩ Last, **egal wo der Wiper steht**. Das TCM3105 will an `TXA` aber
+**≥ 50 kΩ** Last → **5× überlastet** → schwaches/verzerrtes AF zum Radio, und
+**keine RV1-Drehung hilft** (der Wiper ändert nur die Höhe, nie die Last).
+Symptom: Sendeton nur schwach hörbar, alle RV1-Positionen gleich schlecht.
+
+**Lösung 1 (gewählt):** einen **unity-gain Op-Amp-Puffer** zwischen `TXA` und
+dem `RV1`/`AF_TX`-Weg einfügen — der Modem-Ausgang sieht hohe Last, der Puffer
+treibt den Radio-Mic.
+
+**Schaltung:**
+- `TCM3105 TXA (pin 11)` → `U_BUF +` (nichtinvertierend)
+- `U_BUF −` → `U_BUF out` (Spannungsfolger, Verstärkung 1)
+- `U_BUF out` → `RV1 pad 1` (alte `TXA`-Netz) → Wiper → `C_TX` → `AF_TX` → Radio-Mic
+- `U_BUF V+` = `+5V_OR`, `V−` = `GND`, `C_BYP_BUF` 100 nF über der Versorgung
+
+**Teile:** `U_BUF` Single-Supply (5 V), Eingangs-Impedanz ≥ 50 kΩ (FET bevorzugt).
+Bevorzugt **MCP6001 / TLV9061** (SMD, rail-to-rail) — LM358 (DIP-8) als TH-
+Notlösung, beachte Ausgangs-Decke ≈ 3,5 V. Eingang DC-gekoppelt (`TXA` ist
+schon mit ≈ 2,5 V ≈ halbe Versorgung vorgespannt); `C_TX` koppelt weiter AC
+zum Radio-Mic.
+
+**Ergebnis:** `TXA` unbelastet (≥ 50 kΩ), sauberes starkes AF zum Radio.
+Schematik/PCB: `U_BUF` + `C_BYP_BUF` in den TX-Pfad einfügen (Netz
+`TXA`→Buffer-In, Buffer-Out→`RV1`).
 
 ---
 
